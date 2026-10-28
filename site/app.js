@@ -1,9 +1,11 @@
+import { recommendation, safeUrl, createOrder, transitionOrder, ORDER_LABELS } from './domain.js';
 /* =========================================================
    换个技能 · Skill Swap Club
    纯前端演示：数据保存在 localStorage，仅用于原型展示
    ========================================================= */
 
-const STORAGE_KEY = 'skill-swap-club:v1';
+const STORAGE_KEY = 'skill-swap-club:v2';
+const LEGACY_KEY = 'skill-swap-club:v1';
 const MODE_ONLINE = '线上交流';
 const MODE_OFFLINE = '线下见面';
 const CATEGORIES = ['音乐', '摄影', '编程', '语言', '手作', '运动', '设计', '生活', '学业'];
@@ -87,7 +89,10 @@ const SEED_SKILLS = [
 ];
 
 const state = {
-  profile: null,
+  currentUser: 'learner',
+  accounts: { learner: { profile: { name: '学习者', teach: '摄影', learn: '吉他', bio: '' }, saved: [], requests: [] }, 'teacher-seed-1': { profile: { name: '周野', teach: '吉他', learn: '摄影', bio: '吉他老师 · 演示身份' }, saved: [], requests: [] } },
+  orders: [],
+  profile: { name: '学习者', teach: '摄影', learn: '吉他', bio: '' },
   published: [],
   saved: [],
   requests: [],
@@ -131,8 +136,10 @@ function $(selector, scope) {
 }
 
 function allSkills() {
-  return state.published.concat(SEED_SKILLS);
+  return state.published.concat(SEED_SKILLS).map(enrichSkill);
 }
+
+function enrichSkill(skill) { return { ...skill, ownerId: skill.ownerId || (skill.id.startsWith('seed-') ? 'teacher-' + skill.id : 'learner') }; }
 
 function lookupSkill(id) {
   return allSkills().find((skill) => skill.id === id) || null;
@@ -141,43 +148,50 @@ function lookupSkill(id) {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    if (data && typeof data === 'object') {
-      if (data.profile && typeof data.profile === 'object') state.profile = data.profile;
-      if (Array.isArray(data.published)) state.published = data.published;
-      if (Array.isArray(data.saved)) state.saved = data.saved.filter((id) => typeof id === 'string');
-      if (Array.isArray(data.requests)) state.requests = data.requests;
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.accounts && data.accounts[data.currentUser]) {
+        state.accounts = data.accounts;
+        state.currentUser = data.currentUser;
+        state.orders = Array.isArray(data.orders) ? data.orders : [];
+        state.published = Array.isArray(data.published) ? data.published : [];
+        Object.assign(state, state.accounts[state.currentUser]);
+      }
+    } else {
+      const old = JSON.parse(localStorage.getItem(LEGACY_KEY) || 'null');
+      if (old) {
+        state.profile = old.profile || state.profile;
+        state.saved = old.saved || [];
+        state.requests = old.requests || [];
+        state.published = (old.published || []).map(s => ({ ...s, ownerId: 'learner' }));
+      }
     }
-  } catch (error) {
-    /* 忽略隐私模式下的存储异常 */
-  }
+  } catch { toast('本机数据无法读取，已使用演示内容'); }
 }
-
 function persist() {
+  state.accounts[state.currentUser] = { profile: state.profile, saved: state.saved, requests: state.requests };
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      profile: state.profile,
-      published: state.published,
-      saved: state.saved,
-      requests: state.requests
-    }));
-  } catch (error) {
-    /* 忽略存储失败 */
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentUser: state.currentUser, accounts: state.accounts, published: state.published, orders: state.orders }));
+    return true;
+  } catch {
+    toast('保存失败：浏览器存储空间不足，请使用更小的图片；当前变更刷新后会丢失');
+    return false;
   }
 }
-
-/* ---------- 匹配度 ---------- */
-
-function matchScore(skill) {
-  if (!state.profile || (!state.profile.teach && !state.profile.learn)) return null;
-  const teach = state.profile.teach || '';
-  const learn = state.profile.learn || '';
-  let score = 55 + (hashStr(skill.id) % 18);
-  if (overlap(skill.learns, teach)) score += 18;
-  if (overlap(skill.teaches, learn)) score += 18;
-  if (overlap(skill.category, learn) || overlap(skill.category, teach)) score += 4;
-  return Math.min(99, score);
+function matchScore(skill) { return recommendation(skill, state.profile).score; }
+function openAccount() {
+  openModal(`<h2>我的空间</h2><p class="lead">本机演示身份，不是真实登录。切换身份可体验学员购买与老师交付，数据不会同步给其他访客。</p>
+    <div class="account-summary"><strong>${esc(state.profile?.name || '我')}</strong><p>我能教：${esc(state.profile?.teach || '待填写')}</p><p>我想学：${esc(state.profile?.learn || '待填写')}</p></div>
+    <div class="modal-actions"><button class="button secondary" data-action="profile">编辑技能档案</button></div>
+    <h3>切换演示身份</h3><div class="account-list">${Object.entries(state.accounts).map(([id, a]) => `<button class="button secondary" data-account="${esc(id)}">${esc(a.profile.name)}${id === state.currentUser ? ' · 当前' : ''}</button>`).join('')}</div>
+    <form id="account-form" class="modal-form"><div class="field"><label for="account-name">新建本机演示身份</label><input id="account-name" name="name" required maxlength="20" placeholder="输入昵称"></div><button class="button primary">创建并切换</button></form>`);
+}
+function switchAccount(id) {
+  if (!state.accounts[id]) return;
+  persist();
+  state.currentUser = id;
+  Object.assign(state, state.accounts[id]);
+  persist(); closeModal(); refresh(); toast('已切换到 ' + state.profile.name);
 }
 
 /* ---------- 渲染 ---------- */
@@ -203,6 +217,8 @@ function filteredSkills() {
     list = list.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   } else {
     list = list.slice().sort((a, b) => {
+      const interestDiff = matchScore(b) - matchScore(a);
+      if (interestDiff) return interestDiff;
       const featuredDiff = Number(Boolean(b.featured)) - Number(Boolean(a.featured));
       if (featuredDiff !== 0) return featuredDiff;
       return (b.createdAt || 0) - (a.createdAt || 0);
@@ -251,7 +267,7 @@ function cardMarkup(skill, options) {
       </div>
       <div class="card-foot">
         <span class="card-meta">${esc(skill.mode)} · ${esc(skill.time)}</span>
-        ${score != null ? `<span class="match-badge">匹配 ${score}%</span>` : ''}
+        ${score != null ? `<span class="match-badge">${esc(recommendation(skill, state.profile).reason)}</span>` : ''}
         <button type="button" class="button secondary small" data-invite="${esc(skill.id)}">发起交换 ↗</button>
       </div>
     </article>`;
@@ -265,7 +281,7 @@ function requestMarkup(request) {
         <strong>${esc(request.title)}</strong>
         <p>我 → ${esc(request.owner)} · ${esc(request.mode)} · ${esc(request.message || '想和你换一次技能')}</p>
       </div>
-      <span class="request-status">等待回应</span>
+      <span class="request-status">本机演示邀请</span>
       <button type="button" class="icon-button" data-cancel-request="${esc(request.id)}" aria-label="撤回这条邀请" title="撤回">×</button>
     </div>`;
 }
@@ -398,12 +414,12 @@ function renderExchangeView() {
       grid.innerHTML = `<div style="grid-column:1/-1">${state.requests.map(requestMarkup).join('')}</div>`;
     }
   } else if (state.exchangeTab === 'published') {
-    if (countEl) countEl.textContent = `共 ${state.published.length} 条我的发布`;
-    if (state.published.length === 0) {
+    if (countEl) countEl.textContent = `共 ${state.published.filter(s => s.ownerId === state.currentUser).length} 条我的发布`;
+    if (state.published.filter(s => s.ownerId === state.currentUser).length === 0) {
       isEmpty = true;
       if (emptyDescription) emptyDescription.textContent = '还没有发布技能。写下你擅长的事，让需要的人找到你。';
     } else {
-      const list = state.published.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const list = state.published.filter(s => s.ownerId === state.currentUser).map(enrichSkill).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       grid.innerHTML = list.map((skill) => cardMarkup(skill, { mine: true })).join('');
     }
   } else {
@@ -458,6 +474,8 @@ function openModal(html) {
   const body = document.getElementById('modal-body');
   if (!modal || !body) return;
   body.innerHTML = html;
+  const heading = body.querySelector('h2');
+  if (heading) heading.id = 'modal-title';
   if (!modal.open) modal.showModal();
   document.body.classList.add('modal-open');
 }
@@ -543,11 +561,11 @@ function openProfile() {
         </div>
         <div class="field">
           <label for="f-teach">我能教</label>
-          <input id="f-teach" name="teach" maxlength="16" placeholder="例如：Python / 吉他" value="${esc(profile.teach || '')}">
+          <input id="f-teach" name="teach" maxlength="100" placeholder="例如：Python / 吉他" value="${esc(profile.teach || '')}">
         </div>
         <div class="field">
           <label for="f-learn">我想学</label>
-          <input id="f-learn" name="learn" maxlength="16" placeholder="例如：摄影 / 英语口语" value="${esc(profile.learn || '')}">
+          <input id="f-learn" name="learn" maxlength="100" placeholder="例如：摄影 / 英语口语" value="${esc(profile.learn || '')}">
         </div>
         <div class="field full">
           <label for="f-bio">一句话介绍</label>
@@ -608,7 +626,7 @@ function openDetail(skillId) {
       <span class="skill-avatar" aria-hidden="true">${esc(skill.avatar || '✳')}</span>
       <div>
         <h2>${esc(skill.title)}</h2>
-        <p class="detail-owner">${esc(skill.name)} · ${esc(skill.city || '线上')}${score != null ? ` · 与你匹配 ${score}%` : ''}</p>
+        <p class="detail-owner">${esc(skill.name)} · ${esc(skill.city || '线上')}${score != null ? ` · 与你${esc(recommendation(skill, state.profile).reason)}` : ''}</p>
       </div>
     </div>
     <p class="lead">${esc(skill.desc)}</p>
@@ -632,6 +650,7 @@ function openDetail(skillId) {
 function handleAction(action) {
   if (action === 'publish') openPublish();
   else if (action === 'profile') openProfile();
+  else if (action === 'account') openAccount();
   else if (action === 'how') openHow();
   else if (action === 'close') closeModal();
   else if (action === 'explore') setView('discover');
@@ -647,6 +666,8 @@ function toast(message) {
 }
 
 document.addEventListener('click', (event) => {
+  const account = event.target.closest('[data-account]');
+  if (account) { switchAccount(account.dataset.account); return; }
   const navLink = event.target.closest('[data-nav]');
   if (navLink) {
     event.preventDefault();
@@ -752,6 +773,15 @@ document.addEventListener('submit', (event) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
 
+  if (form.id === 'account-form') {
+    event.preventDefault();
+    const name = String(new FormData(form).get('name')).trim();
+    if (!name) return;
+    const id = crypto.randomUUID();
+    state.accounts[id] = { profile: { name, teach: '', learn: '', bio: '' }, saved: [], requests: [] };
+    switchAccount(id); return;
+  }
+
   if (form.id === 'publish-form') {
     event.preventDefault();
     const data = new FormData(form);
@@ -763,7 +793,8 @@ document.addEventListener('submit', (event) => {
       return;
     }
     const skill = {
-      id: `mine-${Date.now()}`,
+      id: `mine-${crypto.randomUUID()}`,
+      ownerId: state.currentUser,
       avatar: AVATARS[hashStr(title) % AVATARS.length],
       name: String(data.get('name') || '').trim() || (state.profile && state.profile.name) || '我',
       city: String(data.get('city') || '').trim() || '线上',
@@ -820,7 +851,7 @@ document.addEventListener('submit', (event) => {
     closeModal();
     refresh();
     setView('exchanges', { tab: 'requests' });
-    toast('邀请已发送，等待对方回应');
+    toast('演示邀请已保存到本机，未发送给真实用户');
   }
 });
 
