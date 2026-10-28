@@ -137,7 +137,7 @@ function $(selector, scope) {
 }
 
 function allSkills() {
-  return state.published.concat(SEED_SKILLS).map(enrichSkill);
+  return state.published.concat(SEED_SKILLS.filter(s => !state.published.some(p => p.id === s.id))).map(enrichSkill);
 }
 
 const COURSE_CONTENT = {
@@ -225,6 +225,8 @@ function filteredSkills() {
   const { q, mode, category } = state.filters;
   const keyword = q.trim().toLowerCase();
   let list = allSkills().filter((skill) => {
+    if (state.filters.wanted && recommendation(skill, state.profile).score < 70) return false;
+    if (state.filters.offering && state.filters.offering !== 'all' && skill.offering !== 'both' && skill.offering !== state.filters.offering) return false;
     if (category !== '全部' && skill.category !== category) return false;
     if (mode !== 'all' && skill.mode !== mode) return false;
     if (!keyword) return true;
@@ -269,7 +271,7 @@ function cardMarkup(skill, options) {
   const saved = state.saved.includes(skill.id);
   const score = opts.score != null ? opts.score : matchScore(skill);
   const topButton = opts.mine
-    ? `<button type="button" class="icon-button save-btn" data-delete="${esc(skill.id)}" aria-label="删除这条发布" title="删除">×</button>`
+    ? `<button type="button" class="icon-button save-btn" data-edit="${esc(skill.id)}" aria-label="编辑这条发布" title="编辑">✎</button>`
     : `<button type="button" class="icon-button save-btn" data-save="${esc(skill.id)}" aria-label="${saved ? '取消收藏' : '收藏技能'}" aria-pressed="${saved}">${saved ? '★' : '☆'}</button>`;
   return `<article class="skill-card" data-id="${esc(skill.id)}">
       <button class="cover-button" data-detail="${esc(skill.id)}" aria-label="查看${esc(skill.title)}详情">${coverMarkup(skill)}</button>
@@ -412,12 +414,12 @@ function render() {
     score: scores ? scores.get(skill.id) : undefined
   })).join('');
 
-  if (countEl) countEl.textContent = `共 ${list.length} 条技能交换`;
+  if (countEl) countEl.textContent = `共 ${list.length} 门技能课程`;
   const isEmpty = list.length === 0;
   if (empty) empty.hidden = !isEmpty;
   if (isEmpty && emptyDescription) {
     emptyDescription.textContent = state.view === 'matches'
-      ? '暂时没有匹配到合适的技能，换个关键词，或者去发现全部技能看看。'
+      ? '暂时没有找到符合筛选条件的技能，换个关键词，或者去发现全部技能看看。'
       : '没有找到符合条件的技能，试试换个关键词，或放宽筛选条件。';
   }
 }
@@ -441,12 +443,12 @@ function renderExchangeView() {
       grid.innerHTML = `<div style="grid-column:1/-1">${state.requests.map(requestMarkup).join('')}</div>`;
     }
   } else if (state.exchangeTab === 'published') {
-    if (countEl) countEl.textContent = `共 ${state.published.filter(s => s.ownerId === state.currentUser).length} 条我的发布`;
-    if (state.published.filter(s => s.ownerId === state.currentUser).length === 0) {
+    if (countEl) countEl.textContent = `共 ${allSkills().filter(s => s.ownerId === state.currentUser).length} 条我的发布`;
+    if (allSkills().filter(s => s.ownerId === state.currentUser).length === 0) {
       isEmpty = true;
       if (emptyDescription) emptyDescription.textContent = '还没有发布技能。写下你擅长的事，让需要的人找到你。';
     } else {
-      const list = state.published.filter(s => s.ownerId === state.currentUser).map(enrichSkill).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const list = allSkills().filter(s => s.ownerId === state.currentUser).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       grid.innerHTML = list.map((skill) => cardMarkup(skill, { mine: true })).join('');
     }
   } else {
@@ -767,10 +769,10 @@ document.addEventListener('click', (event) => {
   if (edit) { openPublish(edit.dataset.edit); return; }
   const account = event.target.closest('[data-account]');
   if (account) { switchAccount(account.dataset.account); return; }
-  const navLink = event.target.closest('[data-nav]');
+  const navLink = event.target.closest('[data-nav], a.brand');
   if (navLink) {
     event.preventDefault();
-    const view = navLink.dataset.nav;
+    const view = navLink.dataset.nav || 'discover';
     setView(view, view === 'exchanges' ? { tab: 'requests' } : undefined);
     return;
   }
@@ -859,6 +861,9 @@ document.addEventListener('click', (event) => {
     const mode = document.getElementById('mode');
     if (search) search.value = '';
     if (mode) mode.value = 'all';
+    $('#sort').value = 'recommended';
+    $('#wanted-only').checked = false;
+    $('#offering-filter').value = 'all';
     if (['exchanges', 'orders'].includes(state.view)) {
       state.view = 'discover';
       state.exchangeTab = 'requests';
@@ -955,7 +960,7 @@ document.addEventListener('submit', async (event) => {
       createdAt: Date.now()
     };
     const previous = state.published.slice();
-    if (editing) { skill.id = editing.id; skill.createdAt = editing.createdAt; state.published = state.published.map(s => s.id === editing.id ? skill : s); }
+    if (editing) { skill.id = editing.id; skill.createdAt = editing.createdAt; state.published = state.published.some(s => s.id === editing.id) ? state.published.map(s => s.id === editing.id ? skill : s) : [skill, ...state.published]; }
     else state.published.unshift(skill);
     if (!state.profile) state.profile = { name: skill.name, teach: teaches, learn: learns, bio: '' };
     if (!persist()) { state.published = previous; return; }
@@ -1012,6 +1017,8 @@ document.addEventListener('input', (event) => {
 });
 
 document.addEventListener('change', (event) => {
+  if (event.target.id === 'wanted-only') { state.filters.wanted = event.target.checked; refresh(); }
+  if (event.target.id === 'offering-filter') { state.filters.offering = event.target.value; refresh(); }
   if (event.target.id === 'mode') {
     state.filters.mode = event.target.value;
     refresh();
