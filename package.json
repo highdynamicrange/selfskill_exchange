@@ -1,0 +1,10 @@
+{
+  "name": "selfskill-exchange",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "check": "node --check site/app.js && node --check server.mjs"
+  }
+}

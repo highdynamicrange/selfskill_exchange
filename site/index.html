@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f7f3">
+  <meta name="description" content="换个技能：用你擅长的，换你想学的。发现学习搭子，发布技能，开启平等、有趣的技能互换。">
+  <title>换个技能 · 让擅长遇见好奇</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="#discover" class="brand" aria-label="换个技能首页"><span class="brand-mark">⇄</span><span>换个技能<small>SKILL SWAP CLUB</small></span></a>
+      <nav aria-label="主导航"><a href="#discover" data-nav="discover" class="active">发现技能</a><a href="#matches" data-nav="matches">为我匹配<span class="nav-dot"></span></a><a href="#exchanges" data-nav="exchanges">我的交换<span id="exchange-count" class="count" hidden>0</span></a></nav>
+      <div class="header-actions"><button class="button primary small" data-action="publish"><span>＋</span> 发布技能</button><button class="profile-avatar" data-action="profile" aria-label="编辑我的技能档案">我</button></div>
+    </div>
+  </header>
+  <main>
+    <section class="hero wrap" id="hero">
+      <div class="hero-copy"><div class="eyebrow"><span></span>每个人，都是别人的技能宝藏</div><h1>用你的<span class="accent">拿手好戏，<svg viewBox="0 0 340 16" aria-hidden="true"><path d="M3 12Q155-4 334 7"/></svg></span><br>换一份新的可能。</h1><p>你教我摄影，我陪你练口语。<br>不必花大价钱，让彼此的擅长，成为成长的起点。</p><div class="hero-buttons"><button class="button primary" data-action="explore">寻找我的学习搭子 <span>↗</span></button><button class="text-button" data-action="how">如何交换 <span class="play-icon">▷</span></button></div><div class="community-note"><div class="mini-avatars"><span>林</span><span>周</span><span>许</span><span>陈</span></div><div><strong>学习这件事，一起更有意思</strong><small>平等分享 · 双向成长 · 从一次交流开始</small></div></div></div>
+      <div class="hero-art" aria-label="以摄影交换吉他的技能互换插画" role="img">
+        <span class="art-label">GOOD AT SOMETHING?<br>PASS IT ON.</span><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><span class="spark spark-one">✳</span><span class="spark spark-two">✦</span>
+        <div class="floating-card camera-card"><span class="paper-label">MY SUPERPOWER</span><div class="camera-drawing"><div class="camera-top"></div><div class="camera-body"><span class="camera-lens"></span><span class="camera-flash"></span></div><span class="camera-shine">✧</span></div><div class="paper-bottom"><strong>记录生活的光</strong><span>摄影 📷</span></div><span class="paper-stamp">I CAN TEACH</span></div>
+        <div class="swap-medallion">⇄</div>
+        <div class="floating-card guitar-card"><span class="paper-label">YOUR NEXT CHAPTER</span><svg class="guitar-drawing" viewBox="0 0 180 170" fill="none" aria-hidden="true"><g transform="rotate(31 90 85)"><path d="M81 69C58 48 42 70 51 88C57 101 29 105 37 133C47 164 96 165 112 138C128 110 95 101 100 87C105 71 99 59 81 69Z" fill="#e7ad6c" stroke="#704c39" stroke-width="2"/><path d="M80 79L84 12H97L94 80" fill="#835b42"/><path d="M84 12L82 1H101L98 18" fill="#d09a60" stroke="#704c39" stroke-width="2"/><circle cx="78" cy="110" r="15" fill="#483d32"/><path d="M60 136H92" stroke="#704c39" stroke-width="7"/><path d="M87 10L73 136M91 10L78 136M95 10L83 136" stroke="#fff3cf" stroke-width="1"/></g><path d="M141 46v23m0-22 13-5v21" stroke="#426852" stroke-width="3"/><ellipse cx="136" cy="70" rx="6" ry="4" fill="#426852"/><ellipse cx="149" cy="64" rx="6" ry="4" fill="#426852"/></svg><div class="paper-bottom"><strong>弹出第一首喜欢的歌</strong><span>吉他 🎸</span></div></div>
+        <span class="handwritten">你的日常，或许是别人的向往。</span><span class="art-doodle">↗</span>
+      </div>
+    </section>
+    <section class="value-strip wrap" aria-label="平台理念"><div><span>↔</span><p><strong>技能换技能</strong><small>不靠价格，靠彼此的价值</small></p></div><div><span>◎</span><p><strong>找到合拍的人</strong><small>兴趣相投，时间也刚刚好</small></p></div><div><span>✧</span><p><strong>成长有个伴</strong><small>一起练习，比独自坚持容易</small></p></div><span class="strip-note">A LITTLE GIVE. A LOT TO GAIN.</span></section>
+    <section id="workspace" class="workspace wrap" aria-labelledby="section-title">
+      <div class="section-heading"><div><div class="eyebrow muted" id="section-eyebrow">THE SKILL MARKET</div><h2 id="section-title">发现你的下一份热爱<span>↗</span></h2><p id="section-description">总有一种你想学的，也总有人需要你擅长的。</p></div><span class="demo-badge"><span></span>灵感社区 · 演示版</span></div>
+      <div id="matching-profile" class="matching-profile" hidden></div>
+      <div id="market-controls"><div class="search-row"><label class="search-box"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 5 5" stroke="currentColor" stroke-width="1.7"/></svg><input id="search" type="search" placeholder="想学点什么？试试摄影、吉他、Python…" aria-label="搜索技能"></label><label class="mode-select"><span>交换方式</span><select id="mode" aria-label="交换方式"><option value="all">全部方式</option><option value="线上交流">线上交流</option><option value="线下见面">线下见面</option></select></label></div><div class="filter-row"><div id="categories" class="categories" aria-label="技能类别"></div><label class="sort-label">排序<select id="sort" aria-label="排序"><option value="recommended">推荐优先</option><option value="newest">最新发布</option></select></label></div></div>
+      <div id="exchange-tabs" class="categories exchange-tabs" hidden><button class="category active" data-exchange-tab="requests">交换邀请</button><button class="category" data-exchange-tab="published">我的发布</button><button class="category" data-exchange-tab="saved">我的收藏</button></div>
+      <div class="results-line"><span id="results-count" aria-live="polite"></span><span id="results-note">一份擅长，开启一段新的连接</span></div>
+      <div id="card-grid" class="card-grid"></div>
+      <div id="empty-state" class="empty-state" hidden><span>⌕</span><h3>这里还在等一个新可能</h3><p id="empty-description"></p><button class="button secondary" id="empty-action">看看全部技能</button></div>
+      <div class="community-banner"><div class="banner-symbol">✳</div><div><h3>别小看你的「这有什么难的」。</h3><p>也许，那正是别人一直想学的。把你的技能分享出来吧。</p></div><button class="button dark" data-action="publish">分享我的拿手好戏 <span>＋</span></button></div>
+    </section>
+    <section class="how-section wrap" id="how"><div><div class="eyebrow muted">SMALL STEPS, NEW POSSIBILITIES</div><h2>一次交换，三步开始。</h2><p>不用是专家，愿意分享就很好。</p></div><div class="step"><span>01 /</span><h3>亮出你的技能</h3><p>写下能教的、想学的，<br>让对的人发现你。</p></div><div class="step"><span>02 /</span><h3>遇见合拍的搭子</h3><p>看看彼此的兴趣与期待，<br>发出第一份交换邀请。</p></div><div class="step"><span>03 /</span><h3>一起把热爱变擅长</h3><p>商量时间，分享所长，<br>给成长多一点陪伴。</p></div></section>
+  </main>
+  <footer class="wrap"><a class="brand footer-brand" href="#discover"><span class="brand-mark">⇄</span>换个技能</a><p>让擅长遇见好奇。<span>Made for curious people.</span></p><span>原型演示 · 数据仅保存在此浏览器</span><a href="https://github.com/highdynamicrange/selfskill_exchange" target="_blank" rel="noopener noreferrer">GitHub ↗</a></footer>
+  <dialog id="modal" aria-labelledby="modal-title"><div class="modal-top"><span class="eyebrow muted">SKILL SWAP CLUB</span><button class="icon-button" data-action="close" aria-label="关闭弹窗">×</button></div><div id="modal-body"></div></dialog>
+  <div id="toast" class="toast" role="status"></div>
+</body>
+</html>
