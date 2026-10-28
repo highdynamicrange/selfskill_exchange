@@ -92,6 +92,7 @@ const state = {
   currentUser: 'learner',
   accounts: { learner: { profile: { name: '学习者', teach: '摄影', learn: '吉他', bio: '' }, saved: [], requests: [] }, 'teacher-seed-1': { profile: { name: '周野', teach: '吉他', learn: '摄影', bio: '吉他老师 · 演示身份' }, saved: [], requests: [] } },
   orders: [],
+  orderTab: 'buyer',
   profile: { name: '学习者', teach: '摄影', learn: '吉他', bio: '' },
   published: [],
   saved: [],
@@ -346,6 +347,7 @@ const VIEW_TEXT = {
     description: '根据你的技能档案，把最可能交换成功的人排在前面。',
     note: '按匹配度排序，先看最合拍的人'
   },
+  orders: { eyebrow: 'MY LEARNING JOURNEY', title: '每一次学习，都有迹可循', description: '购买记录、课程交付与验收进度，在这里一起管理。', note: '本机模拟交易 · 不发生真实扣款' },
   exchanges: {
     eyebrow: 'MY EXCHANGES',
     title: '我的交换',
@@ -367,12 +369,14 @@ function updateViewMeta() {
 }
 
 function render() {
+  $('#hero').hidden = state.view !== 'discover';
+  $('.value-strip').hidden = state.view !== 'discover';
   document.querySelectorAll('[data-nav]').forEach((link) => {
     link.classList.toggle('active', link.dataset.nav === state.view);
   });
 
   const marketControls = document.getElementById('market-controls');
-  if (marketControls) marketControls.hidden = state.view === 'exchanges';
+  if (marketControls) marketControls.hidden = ['exchanges', 'orders'].includes(state.view);
 
   renderCategories();
   renderExchangeTabs();
@@ -384,12 +388,14 @@ function render() {
     if (state.view === 'matches') profileBox.innerHTML = matchCardMarkup();
   }
 
+  document.getElementById('order-controls')?.remove();
   const grid = document.getElementById('card-grid');
   const empty = document.getElementById('empty-state');
   const emptyDescription = document.getElementById('empty-description');
   const countEl = $('#results-count');
   if (!grid) return;
 
+  if (state.view === 'orders') { renderOrders(); return; }
   if (state.view === 'exchanges') {
     renderExchangeView();
     return;
@@ -476,6 +482,7 @@ function updateBadges() {
 
 function setView(view, options) {
   state.view = view;
+  history.replaceState(null, '', '#' + view);
   if (options && options.tab) state.exchangeTab = options.tab;
   render();
   updateBadges();
@@ -680,6 +687,51 @@ function openDetail(skillId) {
     <p class="prototype-note">原型演示：示例讲师、成果与价格用于体验。订单及付款仅在本机模拟，不实际收费。</p>`);
 }
 
+/* ---------- 本机模拟订单 ---------- */
+function orderMarkup(order) {
+  const role = order.buyerId === state.currentUser ? 'buyer' : 'seller';
+  return `<article class="order-card"><div class="order-header"><span>${new Date(order.createdAt).toLocaleDateString('zh-CN')} · ${order.kind === 'trial' ? '试讲预约' : '整套课程'}</span><span class="order-status status-${esc(order.status)}">${ORDER_LABELS[order.status]}</span></div><h3>${esc(order.title)}</h3><p>${role === 'buyer' ? '授课老师：' + esc(order.sellerName) : '购买学员：' + esc(order.buyerName)} · ${esc(order.snapshot.mode)}</p><div class="order-footer"><strong>${money(order.amount)} <small>模拟金额</small></strong><button class="button secondary small" data-order="${esc(order.id)}">${order.status === 'pending' && role === 'buyer' ? '去模拟付款' : order.status === 'delivered' && role === 'buyer' ? '查看交付并验收' : '查看订单'}</button></div></article>`;
+}
+function renderOrders() {
+  const grid = $('#card-grid');
+  const controls = document.createElement('div');
+  controls.id = 'order-controls'; controls.className = 'categories exchange-tabs';
+  controls.innerHTML = `<button class="category ${state.orderTab === 'buyer' ? 'active' : ''}" data-order-tab="buyer">我买的课程</button><button class="category ${state.orderTab === 'seller' ? 'active' : ''}" data-order-tab="seller">我教的课程</button><button class="category" data-action="account">切换演示身份 ↗</button>`;
+  grid.before(controls);
+  const list = state.orders.filter(o => (state.orderTab === 'buyer' ? o.buyerId : o.sellerId) === state.currentUser);
+  $('#results-count').textContent = `${state.profile.name} · ${list.length} 笔订单`;
+  grid.innerHTML = list.map(orderMarkup).join('');
+  $('#empty-state').hidden = list.length > 0;
+  $('#empty-description').textContent = state.orderTab === 'buyer' ? '选择感兴趣的课程，从一次免费试讲开始。' : '尚无学员购买你的课程。切换演示身份后可以体验完整流程。';
+}
+function openCheckout(id, kind) {
+  const skill = lookupSkill(id);
+  if (!skill || skill.ownerId === state.currentUser || skill.offering === 'swap') return;
+  const trial = kind === 'trial';
+  openModal(`<h2>确认${trial ? '试讲预约' : '课程订单'}</h2><p class="lead">${esc(skill.title)}</p><dl class="detail-list"><div><dt>购买身份</dt><dd>${esc(state.profile.name)}</dd></div><div><dt>授课老师</dt><dd>${esc(skill.name)}</dd></div><div><dt>内容</dt><dd>${esc(trial ? skill.trial : skill.duration)}</dd></div><div><dt>应付金额</dt><dd>${money(trial ? skill.trialPrice : skill.price)}</dd></div></dl><p class="prototype-note">这是演示订单，不会实际扣款。提交后可模拟付款；付款后由老师交付，学员确认验收后订单完成。未交付前可模拟退款，交付后可要求补充。</p><form id="checkout-form" class="modal-form"><input type="hidden" name="skillId" value="${esc(id)}"><input type="hidden" name="kind" value="${esc(kind)}"><label class="check-label"><input type="checkbox" required> 我已了解课程内容、价格和演示交易规则</label><button class="button primary">创建演示订单</button></form>`);
+}
+function openOrder(id) {
+  const order = state.orders.find(o => o.id === id);
+  if (!order || ![order.buyerId, order.sellerId].includes(state.currentUser)) return;
+  const buyer = state.currentUser === order.buyerId;
+  let actions = '';
+  const button = (action, label, primary = false) => `<button class="button ${primary ? 'primary' : 'secondary'}" data-order-action="${action}" data-order-id="${esc(id)}">${label}</button>`;
+  if (buyer && order.status === 'pending') actions = button('pay', `模拟付款 ${money(order.amount)}`, true) + button('cancel', '取消订单');
+  if (buyer && order.status === 'paid') actions = button('refund', '申请模拟退款');
+  if (!buyer && order.status === 'paid') actions = button('deliver', '提交课程交付', true);
+  if (buyer && order.status === 'delivered') actions = button('accept', '确认验收', true) + button('revise', '要求补充交付');
+  const actionLabels = { create: '创建订单', pay: '模拟付款成功', cancel: '取消订单', deliver: '老师提交交付', accept: '学员验收完成 / 模拟结算', refund: '模拟原路退款', revise: '要求补充交付' };
+  openModal(`<h2>订单详情</h2><p class="lead">${esc(order.title)}</p><span class="order-status status-${esc(order.status)}">${ORDER_LABELS[order.status]}</span><dl class="detail-list"><div><dt>订单编号</dt><dd class="order-id">${esc(order.id)}</dd></div><div><dt>学员 / 老师</dt><dd>${esc(order.buyerName)} / ${esc(order.sellerName)}</dd></div><div><dt>购买类型</dt><dd>${order.kind === 'trial' ? '试讲' : '整套课程'}</dd></div><div><dt>订单金额</dt><dd>${money(order.amount)}（模拟）</dd></div><div><dt>支付方式</dt><dd>演示支付 · 无真实扣款</dd></div></dl><section class="detail-section"><h3>购买时的课程约定</h3><p>${esc(order.kind === 'trial' ? order.snapshot.trial : order.snapshot.syllabus)}</p><h4>验收内容</h4><p>${esc(order.kind === 'trial' ? order.snapshot.trial : order.snapshot.outcome)}</p></section>${order.delivery ? `<section class="detail-section"><h3>老师交付内容</h3><p>${esc(order.delivery)}</p></section>` : ''}<section class="detail-section"><h3>订单记录</h3><ol class="timeline">${order.history.map(h => `<li><strong>${actionLabels[h.action]}</strong><small>${new Date(h.at).toLocaleString('zh-CN')}</small>${h.note ? `<p>${esc(h.note)}</p>` : ''}</li>`).join('')}</ol></section><div class="modal-actions">${actions}</div><p class="prototype-note">${order.status === 'paid' && buyer ? '下一步：在「我的空间」切换到老师身份，进入「订单中心 → 我教的课程」提交交付。' : '所有记录仅保存在此浏览器，不能作为真实付款或交易凭证。'}</p>`);
+}
+function openOrderAction(id, action) {
+  const order = state.orders.find(o => o.id === id);
+  if (!order) return;
+  const titles = { pay: '确认模拟付款', cancel: '取消这笔订单', deliver: '提交课程交付', accept: '确认验收并模拟结算', refund: '确认模拟退款', revise: '要求补充交付' };
+  if (!titles[action]) return;
+  const note = ['deliver', 'revise'].includes(action);
+  openModal(`<h2>${titles[action]}</h2><p class="lead">${esc(order.title)} · ${money(order.amount)}</p><p class="prototype-note">${action === 'accept' ? '确认已完成约定课程并收到成果反馈。验收后订单完成；此处仅演示结算，不转移资金。' : action === 'pay' ? '点击确认仅更改本机订单状态，不连接支付渠道，不产生真实扣款。' : action === 'refund' ? '演示规则：未交付的已付款订单可直接全额模拟退款。不会发生真实资金流动。' : '本次操作会记录在订单历史中。'}</p><form id="order-action-form" class="modal-form"><input type="hidden" name="orderId" value="${esc(id)}"><input type="hidden" name="action" value="${action}">${note ? `<div class="field"><label for="order-note">${action === 'deliver' ? '交付内容与成果反馈（可附作品网址）' : '需要补充的内容'}</label><textarea id="order-note" name="note" required maxlength="2000"></textarea></div>` : ''}<div class="modal-actions"><button type="button" class="button secondary" data-order="${esc(id)}">返回订单</button><button class="button primary">确认${action === 'pay' ? '模拟付款' : action === 'refund' ? '模拟退款' : ''}</button></div></form>`);
+}
+
 /* ---------- 交互处理 ---------- */
 
 function handleAction(action) {
@@ -701,6 +753,14 @@ function toast(message) {
 }
 
 document.addEventListener('click', (event) => {
+  const orderTab = event.target.closest('[data-order-tab]');
+  if (orderTab) { state.orderTab = orderTab.dataset.orderTab; refresh(); return; }
+  const orderAction = event.target.closest('[data-order-action]');
+  if (orderAction) { openOrderAction(orderAction.dataset.orderId, orderAction.dataset.orderAction); return; }
+  const orderLink = event.target.closest('[data-order]');
+  if (orderLink) { openOrder(orderLink.dataset.order); return; }
+  const buy = event.target.closest('[data-buy]');
+  if (buy) { openCheckout(buy.dataset.buy, buy.dataset.kind); return; }
   const detail = event.target.closest('[data-detail]');
   if (detail) { openDetail(detail.dataset.detail); return; }
   const edit = event.target.closest('[data-edit]');
@@ -799,7 +859,7 @@ document.addEventListener('click', (event) => {
     const mode = document.getElementById('mode');
     if (search) search.value = '';
     if (mode) mode.value = 'all';
-    if (state.view === 'exchanges') {
+    if (['exchanges', 'orders'].includes(state.view)) {
       state.view = 'discover';
       state.exchangeTab = 'requests';
     }
@@ -812,6 +872,36 @@ document.addEventListener('submit', async (event) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
 
+  if (form.id === 'checkout-form') {
+    event.preventDefault();
+    const data = new FormData(form);
+    const skill = lookupSkill(String(data.get('skillId')));
+    if (!skill || skill.offering === 'swap') return;
+    const kind = String(data.get('kind'));
+    const existing = state.orders.find(o => o.buyerId === state.currentUser && o.skillId === skill.id && o.kind === kind && ['pending', 'paid', 'delivered'].includes(o.status));
+    if (existing) { openOrder(existing.id); toast('已有进行中的订单，已为你打开'); return; }
+    try {
+      const order = createOrder(skill, { id: state.currentUser, name: state.profile.name }, kind);
+      if (!state.accounts[skill.ownerId]) state.accounts[skill.ownerId] = { profile: { name: skill.name, teach: skill.teaches, learn: skill.learns, bio: '演示老师' }, saved: [], requests: [] };
+      state.orders.unshift(order);
+      if (!persist()) { state.orders.shift(); return; }
+      state.orderTab = 'buyer'; setView('orders'); openOrder(order.id);
+    } catch (err) { toast(err.message); }
+    return;
+  }
+  if (form.id === 'order-action-form') {
+    event.preventDefault();
+    const data = new FormData(form);
+    const index = state.orders.findIndex(o => o.id === data.get('orderId'));
+    if (index < 0) return;
+    const old = state.orders[index];
+    try {
+      state.orders[index] = transitionOrder(old, String(data.get('action')), state.currentUser, String(data.get('note') || ''));
+      if (!persist()) { state.orders[index] = old; return; }
+      refresh(); openOrder(old.id); toast('演示订单已更新');
+    } catch (err) { toast(err.message); }
+    return;
+  }
   if (form.id === 'account-form') {
     event.preventDefault();
     const name = String(new FormData(form).get('name')).trim();
@@ -953,5 +1043,6 @@ document.addEventListener('error', event => { if (event.target instanceof HTMLIm
 /* ---------- 启动 ---------- */
 
 loadState();
+if (['discover', 'matches', 'exchanges', 'orders'].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
 render();
 updateBadges();
