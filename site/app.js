@@ -139,7 +139,26 @@ function allSkills() {
   return state.published.concat(SEED_SKILLS).map(enrichSkill);
 }
 
-function enrichSkill(skill) { return { ...skill, ownerId: skill.ownerId || (skill.id.startsWith('seed-') ? 'teacher-' + skill.id : 'learner') }; }
+const COURSE_CONTENT = {
+  'seed-1': { price: 19900, outcome: '独立弹唱一首完整歌曲，获得一份个人练习计划与录音反馈。', syllabus: '第 1 课 · 调音、持琴与节奏基础（45 分钟）\n第 2 课 · 四个常用和弦与转换练习（45 分钟）\n第 3 课 · 分解与扫弦，连接主歌副歌（45 分钟）\n第 4 课 · 完整弹唱与一对一反馈（45 分钟）', trial: '20 分钟认识你的吉他：检查持琴姿势，练习一个 Em 和弦，确认学习目标。', portfolio: '成果示例：从零开始完成一段 60 秒弹唱；课后交付和弦表与练习打卡模板。' },
+  'seed-2': { price: 29900, outcome: '完成一组 6 张自然光人像，掌握取景、测光与基础选片。', syllabus: '第 1 课 · 认识曝光与自然光\n第 2 课 · 构图与人物引导\n第 3 课 · 实拍练习与选片\n第 4 课 · 作品点评与整理', trial: '20 分钟作品诊断：带来 3 张照片，一起找到光线与构图的改进点。', portfolio: '成果示例：窗边自然光人像系列，包含拍摄思路、参数与前后对比。' },
+  'seed-3': { price: 25900, outcome: '用 Python 完成一个可重复运行的 Excel 自动汇总脚本。', syllabus: '第 1 课 · 环境配置与 Python 基础\n第 2 课 · pandas 数据读写与清洗\n第 3 课 · 多表合并与统计\n第 4 课 · 自动化脚本交付与代码评审', trial: '20 分钟需求拆解：一起分析一份重复报表，并演示读取 Excel 的基本流程。', portfolio: '成果示例：多份月报一键汇总；交付源代码、依赖清单和运行说明。' }
+};
+function enrichSkill(skill) {
+  const sample = skill.id.startsWith('seed-');
+  return { ownerId: sample ? 'teacher-' + skill.id : 'learner', offering: 'both', price: 15900, trialPrice: 0,
+    duration: '4 课时 · 每次 45 分钟', level: '零基础友好', cover: '', video: '', material: '', portfolioUrl: '',
+    outcome: `完成一份${skill.teaches}练习作品，并获得一次针对性反馈。`,
+    syllabus: `第 1 课 · 认识${skill.teaches}与学习目标\n第 2 课 · 基础方法与示范\n第 3 课 · 独立练习与指导\n第 4 课 · 成果展示与复盘`,
+    trial: `20 分钟了解${skill.teaches}的基础方法与学习计划，确认是否适合。`,
+    portfolio: sample ? '演示成果说明：完成入门练习，并获得老师的具体反馈。' : '',
+    ...COURSE_CONTENT[skill.id], ...skill };
+}
+function money(cents) { return '¥' + (cents / 100).toLocaleString('zh-CN', { maximumFractionDigits: 2 }); }
+function coverMarkup(skill) {
+  const url = safeUrl(skill.cover, true);
+  return `<div class="course-cover tone-${CATEGORIES.indexOf(skill.category) % 5}">${url ? `<img src="${esc(url)}" alt="${esc(skill.title)}的封面" loading="lazy" referrerpolicy="no-referrer"><span class="cover-fallback">${esc(skill.teaches)}</span>` : `<span class="cover-kicker">THE JOY OF LEARNING</span><span class="cover-glyph">${esc(skill.avatar || '✳')}</span><strong>${esc(skill.teaches)}</strong><span class="cover-decoration">✳</span>`}<span class="cover-category">${esc(skill.category)}</span></div>`;
+}
 
 function lookupSkill(id) {
   return allSkills().find((skill) => skill.id === id) || null;
@@ -252,23 +271,25 @@ function cardMarkup(skill, options) {
     ? `<button type="button" class="icon-button save-btn" data-delete="${esc(skill.id)}" aria-label="删除这条发布" title="删除">×</button>`
     : `<button type="button" class="icon-button save-btn" data-save="${esc(skill.id)}" aria-label="${saved ? '取消收藏' : '收藏技能'}" aria-pressed="${saved}">${saved ? '★' : '☆'}</button>`;
   return `<article class="skill-card" data-id="${esc(skill.id)}">
+      <button class="cover-button" data-detail="${esc(skill.id)}" aria-label="查看${esc(skill.title)}详情">${coverMarkup(skill)}</button>
       <div class="card-top">
         <span class="skill-avatar" aria-hidden="true">${esc(skill.avatar || '✳')}</span>
         <div class="card-heading">
-          <h3 class="card-title">${esc(skill.title)}</h3>
+          <h3 class="card-title"><button class="title-button" data-detail="${esc(skill.id)}">${esc(skill.title)}</button></h3>
           <p class="card-owner">${esc(skill.name || '匿名')} · ${esc(skill.city || '线上')}${opts.mine ? ' · 我发布的' : ''}</p>
         </div>
         ${topButton}
       </div>
       <p class="card-desc">${esc(skill.desc)}</p>
+      <p class="course-outcome">学完能做到 · ${esc(skill.outcome)}</p>
       <div class="card-tags">
         <span class="tag teach">能教 · ${esc(skill.teaches)}</span>
-        <span class="tag learn">想换 · ${esc(skill.learns)}</span>
+        <span class="tag learn">${skill.offering === "paid" ? "付费课程" : "可互换 · " + esc(skill.learns)}</span>
       </div>
       <div class="card-foot">
         <span class="card-meta">${esc(skill.mode)} · ${esc(skill.time)}</span>
         ${score != null ? `<span class="match-badge">${esc(recommendation(skill, state.profile).reason)}</span>` : ''}
-        <button type="button" class="button secondary small" data-invite="${esc(skill.id)}">发起交换 ↗</button>
+        <strong class="course-price">${skill.offering === "swap" ? "技能互换" : money(skill.price)}<small>${skill.offering === "swap" ? "" : " / 整套课程"}</small></strong><button type="button" class="button secondary small" data-detail="${esc(skill.id)}">查看课程 ↗</button>
       </div>
     </article>`;
 }
@@ -492,12 +513,15 @@ function categoryOptions(selected) {
     .join('');
 }
 
-function openPublish() {
+function openPublish(skillId) {
+  const editing = skillId ? lookupSkill(skillId) : null;
+  if (editing && editing.ownerId !== state.currentUser) return;
   const profile = state.profile || {};
   openModal(`
     <h2>分享我的拿手好戏</h2>
     <p class="lead">不用是专家，愿意分享就很好。写下来，让对的人找到你。</p>
     <form class="modal-form" id="publish-form">
+      <input type="hidden" name="editing" value="${esc(editing?.id || '')}">
       <div class="form-grid">
         <div class="field full">
           <label for="p-title">技能标题</label>
@@ -536,16 +560,37 @@ function openPublish() {
         </div>
         <div class="field full">
           <label for="p-desc">补充说明</label>
-          <textarea id="p-desc" name="desc" maxlength="160" placeholder="介绍一下你的经验、教学方式，以及你想换到什么。"></textarea>
-          <span class="field-hint">最多 160 字，真诚比专业更打动人。</span>
+          <textarea id="p-desc" name="desc" maxlength="1200" placeholder="介绍一下你的经验、教学方式，以及你想换到什么。"></textarea>
+          <span class="field-hint">最多 1200 字，真诚比专业更打动人。</span>
         </div>
+        <div class="field full"><label for="p-cover">封面图片链接（可选）</label><input id="p-cover" name="cover" type="url" placeholder="https://…"><span class="field-hint">也可以上传 JPG / PNG / WebP，最大 600 KB。未设置时使用分类封面。</span><input type="file" name="coverFile" accept="image/jpeg,image/png,image/webp" aria-label="上传课程封面"></div>
+        <div class="field"><label for="p-offering">学习方式</label><select id="p-offering" name="offering"><option value="both">技能互换 / 付费均可</option><option value="swap">仅技能互换</option><option value="paid">仅付费课程</option></select></div>
+        <div class="field"><label for="p-price">整套课程价格（元）</label><input id="p-price" name="price" type="number" min="0" max="99999" step="0.01" required value="199"></div>
+        <div class="field"><label for="p-trialPrice">试讲价格（元，0 为免费）</label><input id="p-trialPrice" name="trialPrice" type="number" min="0" max="99999" step="0.01" required value="0"></div>
+        <div class="field"><label for="p-duration">课时安排</label><input id="p-duration" name="duration" maxlength="80" value="4 课时 · 每次 45 分钟" required></div>
+        <div class="field full"><label for="p-outcome">学完能做到什么 / 验收标准</label><textarea id="p-outcome" name="outcome" required maxlength="500" placeholder="例如：独立弹唱一首完整歌曲，提交录音并获得老师点评。"></textarea></div>
+        <div class="field full"><label for="p-syllabus">课程设计（每行一课）</label><textarea id="p-syllabus" name="syllabus" required maxlength="2000" placeholder="第 1 课 · 基础知识与示范&#10;第 2 课 · 独立练习与指导"></textarea></div>
+        <div class="field full"><label for="p-trial">试讲方案</label><textarea id="p-trial" name="trial" required maxlength="800" placeholder="时长、试讲内容、需要提前准备什么"></textarea></div>
+        <div class="field full"><label for="p-portfolio">成果展示说明</label><textarea id="p-portfolio" name="portfolio" maxlength="1000" placeholder="描述代表作品或学员能完成的成果，不填写虚构成绩。"></textarea></div>
+        <div class="field full"><label for="p-portfolioUrl">成果作品链接（可选）</label><input id="p-portfolioUrl" name="portfolioUrl" type="url" placeholder="https://…"></div>
+        <div class="field full"><label for="p-video">试讲视频链接（可选）</label><input id="p-video" name="video" type="url" placeholder="HTTPS MP4 直链或视频平台页面"></div>
+        <div class="field full"><label for="p-material">教案 / 讲义链接（可选）</label><input id="p-material" name="material" type="url" placeholder="PDF 或公开文档链接"></div>
       </div>
+      <p class="prototype-note">发布内容仅保存在当前浏览器。示例课程与价格用于体验，不代表真实在售服务。</p>
       <div class="modal-actions">
         <button type="button" class="button secondary" data-action="close">取消</button>
-        <button type="submit" class="button primary">发布技能</button>
+        <button type="submit" class="button primary">${editing ? '保存修改' : '发布技能'}</button>
       </div>
     </form>
   `);
+  if (editing) {
+    const form = $('#publish-form');
+    for (const [key, value] of Object.entries(editing)) {
+      const el = form.elements.namedItem(key);
+      if (el && el.type !== 'file') el.value = ['price', 'trialPrice'].includes(key) ? value / 100 : (key === 'cover' && String(value).startsWith('data:') ? '' : value);
+    }
+    $('#modal-title').textContent = '编辑我的课程';
+  }
 }
 
 function openProfile() {
@@ -616,33 +661,23 @@ function openInvite(skillId) {
   `);
 }
 
+function resourceLink(url, label) {
+  const href = safeUrl(url);
+  return href ? `<a class="resource-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a>` : '';
+}
 function openDetail(skillId) {
   const skill = lookupSkill(skillId);
   if (!skill) return;
-  const saved = state.saved.includes(skill.id);
-  const score = matchScore(skill);
-  openModal(`
-    <div class="detail-top">
-      <span class="skill-avatar" aria-hidden="true">${esc(skill.avatar || '✳')}</span>
-      <div>
-        <h2>${esc(skill.title)}</h2>
-        <p class="detail-owner">${esc(skill.name)} · ${esc(skill.city || '线上')}${score != null ? ` · 与你${esc(recommendation(skill, state.profile).reason)}` : ''}</p>
-      </div>
-    </div>
-    <p class="lead">${esc(skill.desc)}</p>
-    <dl class="detail-list">
-      <div><dt>能教</dt><dd>${esc(skill.teaches)}</dd></div>
-      <div><dt>想换</dt><dd>${esc(skill.learns)}</dd></div>
-      <div><dt>交换方式</dt><dd>${esc(skill.mode)}</dd></div>
-      <div><dt>方便时间</dt><dd>${esc(skill.time)}</dd></div>
-      <div><dt>技能类别</dt><dd>${esc(skill.category || '其他')}</dd></div>
-    </dl>
-    <div class="modal-actions">
-      <button type="button" class="button secondary" data-action="close">关闭</button>
-      <button type="button" class="button secondary" data-save="${esc(skill.id)}">${saved ? '★ 已收藏' : '☆ 收藏'}</button>
-      <button type="button" class="button primary" data-invite="${esc(skill.id)}">发起交换 ↗</button>
-    </div>
-  `);
+  const mine = skill.ownerId === state.currentUser;
+  const video = safeUrl(skill.video);
+  openModal(`<div class="detail-cover">${coverMarkup(skill)}</div><div class="detail-top"><div><span class="eyebrow muted">${esc(skill.category)} / ${esc(skill.level)}</span><h2>${esc(skill.title)}</h2><p class="detail-owner">${esc(skill.name)} · ${esc(skill.city)} · ${esc(skill.mode)}</p></div></div>
+    <p class="lead">${esc(skill.desc)}</p><div class="course-facts"><span>${esc(skill.duration)}</span><span>${esc(skill.time)}</span><span>${esc(recommendation(skill, state.profile).reason)}</span></div>
+    <section class="detail-section"><h3>你将收获什么</h3><p>${esc(skill.outcome)}</p></section>
+    <section class="detail-section"><h3>课程怎么安排</h3><ol class="lesson-list">${skill.syllabus.split('\n').filter(Boolean).map(l => `<li>${esc(l)}</li>`).join('')}</ol>${resourceLink(skill.material, '查看完整教案 / 讲义')}</section>
+    <section class="detail-section"><h3>先试一小步 · ${money(skill.trialPrice)} 试讲</h3><p>${esc(skill.trial)}</p>${video && /\.mp4(?:[?#]|$)/i.test(video) ? `<video controls preload="none" src="${esc(video)}" aria-label="试讲视频"></video>` : ''}${resourceLink(video, '打开试讲视频')}${!video ? '<p class="field-hint">尚未上传试讲视频，可先查看文字方案。</p>' : ''}</section>
+    <section class="detail-section"><h3>成果展示</h3><p>${esc(skill.portfolio || '发布者暂未添加成果说明。')}</p>${resourceLink(skill.portfolioUrl, '查看成果作品')}</section>
+    <section class="purchase-panel"><div><span>${skill.offering === 'swap' ? '技能互换' : '整套课程'}</span><strong>${skill.offering === 'swap' ? '以技能交换' : money(skill.price)}</strong><small>想学：${esc(skill.learns)}</small></div><div class="purchase-actions">${mine ? `<button class="button primary" data-edit="${esc(skill.id)}">编辑课程</button>` : `<button class="button secondary" data-save="${esc(skill.id)}">${state.saved.includes(skill.id) ? '★ 已收藏' : '☆ 收藏课程'}</button>${skill.offering !== 'paid' ? `<button class="button secondary" data-invite="${esc(skill.id)}">技能互换</button>` : ''}${skill.offering !== 'swap' ? `<button class="button secondary" data-buy="${esc(skill.id)}" data-kind="trial">预约试讲</button><button class="button primary" data-buy="${esc(skill.id)}" data-kind="course">购买课程</button>` : ''}`}</div></section>
+    <p class="prototype-note">原型演示：示例讲师、成果与价格用于体验。订单及付款仅在本机模拟，不实际收费。</p>`);
 }
 
 /* ---------- 交互处理 ---------- */
@@ -666,6 +701,10 @@ function toast(message) {
 }
 
 document.addEventListener('click', (event) => {
+  const detail = event.target.closest('[data-detail]');
+  if (detail) { openDetail(detail.dataset.detail); return; }
+  const edit = event.target.closest('[data-edit]');
+  if (edit) { openPublish(edit.dataset.edit); return; }
   const account = event.target.closest('[data-account]');
   if (account) { switchAccount(account.dataset.account); return; }
   const navLink = event.target.closest('[data-nav]');
@@ -769,7 +808,7 @@ document.addEventListener('click', (event) => {
   }
 });
 
-document.addEventListener('submit', (event) => {
+document.addEventListener('submit', async (event) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
 
@@ -792,7 +831,24 @@ document.addEventListener('submit', (event) => {
       toast('标题、能教、想学都要填写哦');
       return;
     }
+    const editing = data.get('editing') ? lookupSkill(String(data.get('editing'))) : null;
+    if (editing && editing.ownerId !== state.currentUser) return;
+    let cover = String(data.get('cover') || '').trim() || editing?.cover || '';
+    const file = data.get('coverFile');
+    if (file && file.size) {
+      if (file.size > 600 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { toast('请选择 600 KB 以内的 JPG / PNG / WebP 图片'); return; }
+      try { cover = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file); }); }
+      catch { toast('图片读取失败，请重试'); return; }
+    }
+    const media = { cover, video: String(data.get('video') || ''), material: String(data.get('material') || ''), portfolioUrl: String(data.get('portfolioUrl') || '') };
+    if (Object.entries(media).some(([k, v]) => v && !safeUrl(v, k === 'cover'))) { toast('素材链接必须是 HTTP 或 HTTPS 地址'); return; }
+    const advanced = Object.fromEntries(['duration', 'outcome', 'syllabus', 'trial', 'portfolio', 'offering'].map(k => [k, String(data.get(k) || '').trim()]));
+    if (!advanced.outcome || !advanced.syllabus || !advanced.trial || !advanced.duration) { toast('请填写课程安排、试讲与验收标准'); return; }
+    const price = Math.round(Number(data.get('price')) * 100);
+    const trialPrice = Math.round(Number(data.get('trialPrice')) * 100);
+    if (![price, trialPrice].every(v => Number.isInteger(v) && v >= 0 && v <= 9999900)) { toast('价格超出有效范围'); return; }
     const skill = {
+      ...advanced, ...media, price, trialPrice,
       id: `mine-${crypto.randomUUID()}`,
       ownerId: state.currentUser,
       avatar: AVATARS[hashStr(title) % AVATARS.length],
@@ -808,12 +864,14 @@ document.addEventListener('submit', (event) => {
       featured: false,
       createdAt: Date.now()
     };
-    state.published.unshift(skill);
+    const previous = state.published.slice();
+    if (editing) { skill.id = editing.id; skill.createdAt = editing.createdAt; state.published = state.published.map(s => s.id === editing.id ? skill : s); }
+    else state.published.unshift(skill);
     if (!state.profile) state.profile = { name: skill.name, teach: teaches, learn: learns, bio: '' };
-    persist();
+    if (!persist()) { state.published = previous; return; }
     closeModal();
     setView('exchanges', { tab: 'published' });
-    toast('发布成功，已加入「我的发布」');
+    toast(editing ? '课程修改已保存' : '发布成功，已加入「我的发布」');
     return;
   }
 
@@ -889,6 +947,8 @@ document.addEventListener('keydown', (event) => {
     if (event.target === modal) closeModal();
   });
 })();
+
+document.addEventListener('error', event => { if (event.target instanceof HTMLImageElement) event.target.hidden = true; }, true);
 
 /* ---------- 启动 ---------- */
 

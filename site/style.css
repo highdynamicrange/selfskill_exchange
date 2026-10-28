@@ -1840,3 +1840,32 @@ dialog#modal::backdrop {
     scroll-behavior: auto !important;
   }
 }
+
+/* Course marketplace v2 */
+.title-button { padding:0; border:0; background:none; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.skill-card { overflow:hidden; gap:12px; }
+.cover-button { display:block; margin:-21px -21px 4px; border:0; padding:0; cursor:pointer; text-align:left; }
+.course-cover { height:190px; position:relative; isolation:isolate; overflow:hidden; background:#ead9be; color:#6e4d35; padding:24px; }
+.course-cover::before { content:''; position:absolute; width:190px; height:190px; border:1px solid currentColor; opacity:.18; border-radius:50%; right:-28px; top:-35px; }
+.course-cover::after { content:''; position:absolute; width:130px; height:130px; background:currentColor; opacity:.06; border-radius:50%; right:3px; bottom:-65px; }
+.course-cover img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:2; }
+.cover-fallback { font-size:28px; font-weight:700; }
+.tone-1 { background:#dce8df; color:#315c4b; }.tone-2 { background:#dde4ed; color:#3f5577; }.tone-3 { background:#ecdcd3; color:#965a45; }.tone-4 { background:#e6e0ef; color:#695781; }
+.cover-kicker { display:block; font-size:9px; letter-spacing:2px; opacity:.65; }
+.cover-glyph { position:absolute; font-size:74px; line-height:1; right:25px; top:55px; transform:rotate(-12deg); filter:saturate(.75); }
+.course-cover strong { position:absolute; bottom:36px; font-family:var(--font-serif); font-size:32px; max-width:65%; }
+.cover-decoration { position:absolute; top:50px; left:24px; font-size:36px; font-weight:300; opacity:.6; }
+.cover-category { position:absolute; right:12px; top:12px; z-index:3; padding:3px 10px; border-radius:30px; background:#fffdf8e8; color:var(--ink-soft); font-size:11px; }
+.course-outcome { font-size:12px; color:var(--green); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.course-price { color:var(--orange-deep); font-size:21px; }.course-price small { font-size:11px; font-weight:400; color:var(--ink-soft); }
+.card-foot .card-meta { width:100%; }.card-foot .button { margin-left:auto; }
+.detail-cover { margin:-24px -24px 24px; }.detail-cover .course-cover { height:200px; }.detail-cover .cover-glyph { right:70px; }
+dialog#modal { width:min(760px, calc(100vw - 24px)); }.detail-section { padding:22px 0; border-top:1px solid var(--line); }.detail-section h3 { font-size:18px; margin-bottom:12px; }.detail-section p { white-space:pre-wrap; font-size:14px; color:var(--ink-soft); }.course-facts { display:flex; flex-wrap:wrap; gap:8px; font-size:12px; color:var(--ink-soft); }.course-facts span { background:var(--paper-deep); padding:5px 12px; border-radius:20px; }
+.lesson-list { padding:0; list-style:none; counter-reset:lesson; }.lesson-list li { counter-increment:lesson; padding:12px 0; border-bottom:1px dashed var(--line); font-size:14px; }.lesson-list li::before { content:counter(lesson, decimal-leading-zero); color:var(--orange); font:16px Georgia,serif; margin-right:16px; }
+.resource-link { display:inline-block; margin-top:12px; color:var(--orange-deep); border-bottom:1px solid var(--orange-soft); font-size:14px; }.detail-section video { display:block; width:100%; max-height:320px; margin-top:16px; background:#222; border-radius:12px; }
+.purchase-panel { background:var(--cream); border:1px solid var(--orange-soft); padding:20px; border-radius:16px; display:flex; justify-content:space-between; gap:20px; }.purchase-panel strong { display:block; font-size:28px; color:var(--orange-deep); }.purchase-panel small,.purchase-panel span { display:block; font-size:12px; }.purchase-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
+.prototype-note { font-size:12px; color:var(--ink-soft); margin:14px 0; padding:12px; background:var(--paper-deep); border-radius:8px; }
+.account-summary { padding:20px; background:var(--green-soft); border-radius:12px; font-size:14px; }.account-summary strong { font-size:24px; }.account-list { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 24px; }
+:focus-visible { outline:3px solid var(--orange); outline-offset:3px; }.toast { max-width:calc(100vw - 32px); border-radius:14px; width:max-content; }
+@media(max-width:880px) { .header-inner { flex-wrap:wrap; padding:12px 0; }.site-header nav { display:flex; order:3; width:100%; justify-content:space-around; gap:12px; padding:5px 0; }.site-header nav a { font-size:13px; }.hero { padding-top:28px; }.hero-art { display:none; }.hero { padding-bottom:30px; }.value-strip { display:none; } }
+@media(max-width:640px) { .purchase-panel { flex-direction:column; }.purchase-actions { justify-content:flex-start; }.skill-card { min-width:0; }.account-list .button { white-space:normal; }.brand small { display:none; }.header-actions { gap:10px; } }
